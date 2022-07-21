@@ -123,7 +123,7 @@ class SineCollisionEnv(gym.Env):
             shape=self.observation_shape,
             dtype=np.float64
         )
-        self.observation = np.zeros(shape=(2,1))
+        self.observation = np.zeros(shape=self.observation_shape)
 
         # Maximum difference between "f_d" and "f_e" so that our episode is considered a success
         self.tolerance = 1e-3
@@ -166,8 +166,6 @@ class SineCollisionEnv(gym.Env):
         if self.x_o <= self.x_e:
             f_e = np.array([0.0], dtype=np.float64)
         else:
-            # f_e = np.multiply(self.K_e, self.x_o - self.x_e) + 0.1 * np.sin(2 * np.pi * 100 * self.time)
-            # f_e = np.multiply(self.K_e, self.x_o - self.x_e) + np.random.normal(-0.1, 0.1)
             f_e = np.multiply(self.K_e, self.x_o - self.x_e) + np.random.normal(0, 0.1)
             
         # Calculate the error given by "f_d" - "f_e"
@@ -198,5 +196,4 @@ class SineCollisionEnv(gym.Env):
         self.x_e = 0
         self.steps = 0
         self.time = 0
-        return np.array([0.0, 0.0]).reshape((2, 1))
-
+        return np.zeros(self.observation_shape)
