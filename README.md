@@ -1,9 +1,13 @@
 ## residual-optimization
 
-### Create a virtual environment for the project
+### Dependencies
+
+Refer to [Tensorflow Installation guide](https://www.tensorflow.org/install/pip) to install Miniconda3.
+
+Then, create a TF 1.15 environment:
 ```
-python3 -m venv ./venv
-source activate ./venv/bin/activate
+conda create -n tf15 python tensorflow=1.15
+conda activate tf15
 ```
 
 ### Install the package
