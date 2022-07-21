@@ -40,7 +40,12 @@ class SimpleCollisionEnv(gym.Env):
     error
         r = -(f_d - f_e) ** 2
     """
-    def __init__(self, base_controller : BaseController, dt : np.float64):
+    def __init__(self,
+        base_controller : BaseController,
+        dt : np.float64,
+        K_e : np.float64,
+        x_e : np.float64,
+    ):
         """
         Parameters
         ----------
@@ -49,6 +54,10 @@ class SimpleCollisionEnv(gym.Env):
         dt : float
             It is the duratin of the control cycle for both the human-defined and 
             the learned policy controller.
+        K_e : float
+            The stiffness of the environment
+        x_e : float
+            The position of the wall
         """
         super(SimpleCollisionEnv, self).__init__()
         self.base_controller = base_controller
@@ -67,33 +76,13 @@ class SimpleCollisionEnv(gym.Env):
         self.x_o = self.x_o_box.sample()
 
         # Define the environment contact position x_e
-        self.x_e_shape = (1,)
-        self.x_e_min = 0.05
-        self.x_e_max = 0.05
-        self.x_e_box = gym.spaces.Box(
-            low=self.x_e_min,
-            high=self.x_e_max,
-            shape=self.x_e_shape,
-            dtype=np.float64
-        )
-        self.x_e = self.x_e_box.sample()
-
-        # Define the evironment stiffness K_e
-        self.K_e_shape = (1,)
-        self.K_e_min = 1
-        self.K_e_max = 1
-        self.K_e_box = gym.spaces.Box(
-            low=self.K_e_min,
-            high=self.K_e_max,
-            shape=self.K_e_shape,
-            dtype=np.float64
-        )
-        self.K_e = self.K_e_box.sample()
+        self.x_e = x_e
+        self.K_e = K_e
 
         # Define our action space for "u_r"
         self.action_shape = (1,)
-        self.action_min = -0.001
-        self.action_max = 0.001
+        self.action_min = -0.01
+        self.action_max = 0.01
 
         # We use Box since our neural network residual action is continuous
         self.action_space = gym.spaces.Box(
@@ -141,20 +130,22 @@ class SimpleCollisionEnv(gym.Env):
         _, f_e = self.observation
         u_h = self.base_controller.update(f_e, self.dt)
         u_r = action
-        u = u_h + u_r
+        
+        # Uncomment next line to allow the policy addition
+        # u = u_h + u_r
+        u = u_h
 
         # Update absolute pose
-        self.x_o += u
+        self.x_o = u
 
         # Get environment response
-        x_d, f_d = self.base_controller.get_reference()
-        if self.x_o + x_d <= self.x_e:
+        if self.x_o <= self.x_e:
             f_e = np.array([0.0], dtype=np.float64)
         else:
             f_e = np.multiply(self.K_e, self.x_o - self.x_e )
-            f_e = -f_e # Force exerted equals minus the environment force
 
         # Calculate the error given by "f_d" - "f_e"
+        _, f_d = self.base_controller.get_reference()
         d_f = f_d - f_e
         self.observation = np.hstack((f_d, f_e)).reshape(2,1)
 
@@ -174,8 +165,6 @@ class SimpleCollisionEnv(gym.Env):
 
     def reset(self):
         self.x_o = self.x_o_box.sample()
-        self.x_e = self.x_e_box.sample()
-        self.K_e = self.K_e_box.sample()
         self.steps = 0
         return np.array([0.0, 0.0])
 
