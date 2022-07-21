@@ -146,7 +146,7 @@ class SineCollisionEnv(gym.Env):
         
         # Uncomment next line to allow the policy addition
         # u = u_h + u_r
-        u = u_h
+        u = u_h + u_r
 
         # Update absolute pose
         self.x_o = u
