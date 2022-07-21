@@ -22,7 +22,7 @@ x_e_offset = 0.1
 x_e_amplitude = 0.015
 x_e_frequency = 0.2
 K_e = 1000.0
-total_episodes = 100
+total_episodes = 10
 
 # Trajectory definitions
 time = np.arange(start=time_start, stop=time_stop, step=dt)
@@ -32,7 +32,9 @@ f_d = np.ones_like(time, dtype=np.float64) * 5.0
 x_c = np.zeros_like(x_d, dtype=np.float64)
 x_e = np.zeros_like(x_d, dtype=np.float64)
 f_e = np.zeros_like(f_d, dtype=np.float64)
+u_h = np.zeros_like(f_d, dtype=np.float64)
 u_r = np.zeros_like(f_d, dtype=np.float64)
+u = np.zeros_like(f_d, dtype=np.float64)
 
 # Gym environment
 env = SineCollisionEnv(
@@ -46,7 +48,7 @@ env = SineCollisionEnv(
     f_d=f_d
 )
 
-model = PPO("MultiInputPolicy", env, verbose=1)
+model = PPO("MlpPolicy", env, verbose=1)
 model.learn(total_timesteps=num_samples * total_episodes)
 
 model.save("training_sine_constant_stiffness_1000ep")
@@ -55,35 +57,39 @@ model.save("training_sine_constant_stiffness_1000ep")
 obs = env.reset()
 for t in range(len(time)):
     action, _states = model.predict(obs)
-    u_r[t] = action[0]
     obs, rewards, dones, info = env.step(action)
     
     # Add to plot
     x_c[t] = info['x_o']
     x_e[t] = info['x_e']
+    u_h[t] = info['u_h']
+    u_r[t] = info['u_r']
+    u[t] = info['u']
     f_e[t] = obs[1]
 
 # Plot variables
 fig = plt.figure()
 ax1 = plt.subplot(311)
 linewidth = 0.7
-ax1.plot(time, x_d, color='blue', linestyle='--', label='x_d', linewidth=linewidth )
-ax1.plot(time, x_c, color='black', label='x_c', linewidth=linewidth )
-ax1.plot(time, x_e, color='red', linestyle='--', label='x_e', linewidth=linewidth )
+ax1.plot(time, x_d, color='blue', linestyle='--', label='x_d', linewidth=linewidth)
+ax1.plot(time, x_c, color='black', label='x_c', linewidth=linewidth)
+ax1.plot(time, x_e, color='red', linestyle='--', label='x_e', linewidth=linewidth)
 ax1.set_ylabel('Position (m)')
 ax1.title.set_text('Position tracking')
 ax1.set_ylim([0, 0.22])
 ax1.legend()
 
 ax2 = plt.subplot(312)
-ax2.plot(time, f_d, color='blue', linestyle='--', label='f_d', linewidth=linewidth )
-ax2.plot(time, f_e, color='black', label='f_e', linewidth=linewidth )
+ax2.plot(time, f_d, color='blue', linestyle='--', label='f_d', linewidth=linewidth)
+ax2.plot(time, f_e, color='black', label='f_e', linewidth=linewidth)
 ax2.set_ylabel('Force (N)')
 ax2.legend()
 ax2.title.set_text('Force tracking')
 
 ax3 = plt.subplot(313)
-ax3.plot(time, u_r, color='blue', linestyle='-', label='u_r', linewidth=linewidth )
+ax3.plot(time, u_h, color='red', linestyle='-', label='u_h', linewidth=linewidth)
+ax3.plot(time, u_r, color='blue', linestyle='-', label='u_r', linewidth=linewidth)
+ax3.plot(time, u, color='black', linestyle='-', label='u', linewidth=linewidth)
 ax3.set_ylabel('Policy Action (m)')
 ax3.legend()
 ax3.title.set_text('Force tracking')
