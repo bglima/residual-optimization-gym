@@ -5,6 +5,12 @@ from residual_optimization.envs.sine_collision_env import SineCollisionEnv
 from residual_optimization.controllers.admittance_controller_1d import AdmittanceController1D
 import numpy as np
 import matplotlib.pyplot as plt
+import argparse
+import os
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-m', '--model', default='./models/ppo_model_2022_07_21-09:36:46_PM')
+args = parser.parse_args()
 
 naive_controller = AdmittanceController1D(
     M_d_inv = np.array([1], dtype=np.float64),
@@ -49,9 +55,7 @@ env = SineCollisionEnv(
 )
 
 model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=num_samples * total_episodes)
-
-model.save("training_sine_constant_stiffness_1000ep")
+model.load(os.path.abspath(args.model))
 
 # Visualization
 obs = env.reset()
