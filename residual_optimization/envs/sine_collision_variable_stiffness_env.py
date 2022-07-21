@@ -3,7 +3,7 @@ import gym
 
 from residual_optimization.controllers.base_controller import BaseController
 
-class SimpleCollisionEnv(gym.Env):
+class SineCollisionVariableStiffnessEnv(gym.Env):
     """
     This follows the gym.Env API. For a detailed guide, check:
     https://www.gymlibrary.ml/content/api/
@@ -43,10 +43,16 @@ class SimpleCollisionEnv(gym.Env):
     def __init__(self,
         base_controller : BaseController,
         dt : np.float64,
-        K_e : np.float64,
-        x_e : np.float64,
+        K_e_1 : np.float64,
+        K_e_2 : np.float64,
+        K_e_toggle_time : np.float64,
+        x_e_amplitude : np.float64,
+        x_e_offset : np.float64,
+        x_e_frequency : np.float64
     ):
         """
+        This environment has the wall position varying with a fixe offset and amplitude.
+
         Parameters
         ----------
         base_controller : controllers.BaseController
@@ -54,12 +60,20 @@ class SimpleCollisionEnv(gym.Env):
         dt : float
             It is the duratin of the control cycle for both the human-defined and 
             the learned policy controller.
-        K_e : float
-            The stiffness of the environment
-        x_e : float
-            The position of the wall
+        K_e_1 : float
+            The first value of stiffness for the environment
+        K_e_2 : float
+            The second value of stiffness for the environment
+        K_e_toggle : float
+            The time in seconds in which the stiffness will 
+        x_e_amplitude : float
+            The amplitude of the environment position sinusoid
+        x_e_offset : float
+            The offset of the sinusoid from the beggining
+        x_e_frequency : float
+            The frequency is hz of the sinusoid
         """
-        super(SimpleCollisionEnv, self).__init__()
+        super(SineCollisionVariableStiffnessEnv, self).__init__()
         self.base_controller = base_controller
         self.dt = dt
         self.time = 0
@@ -77,8 +91,14 @@ class SimpleCollisionEnv(gym.Env):
         self.x_o = self.x_o_box.sample()
 
         # Define the environment contact position x_e
-        self.x_e = x_e
-        self.K_e = K_e
+        self.x_e = 0
+        self.x_e_amplitude = x_e_amplitude
+        self.x_e_frequency = x_e_frequency
+        self.x_e_offset = x_e_offset
+        self.K_e = 0
+        self.K_e_1 = K_e_1
+        self.K_e_2 = K_e_2
+        self.K_e_toggle_time = K_e_toggle_time
 
         # Define our action space for "u_r"
         self.action_shape = (1,)
@@ -140,12 +160,17 @@ class SimpleCollisionEnv(gym.Env):
         # Update absolute pose
         self.x_o = u
 
+        # Define K_e based on time
+        if self.time > self.K_e_toggle_time:
+            self.K_e = self.K_e_2
+        else:
+            self.K_e = self.K_e_1
+        
         # Get environment response
+        self.x_e = self.x_e_offset + self.x_e_amplitude * np.sin(2 * np.pi * self.x_e_frequency * self.time)
         if self.x_o <= self.x_e:
             f_e = np.array([0.0], dtype=np.float64)
         else:
-            # f_e = np.multiply(self.K_e, self.x_o - self.x_e) + 0.1 * np.sin(2 * np.pi * 100 * self.time)
-            # f_e = np.multiply(self.K_e, self.x_o - self.x_e) + np.random.normal(-0.1, 0.1)
             f_e = np.multiply(self.K_e, self.x_o - self.x_e) + np.random.normal(0, 0.1)
             
         # Calculate the error given by "f_d" - "f_e"
@@ -162,14 +187,17 @@ class SimpleCollisionEnv(gym.Env):
             done = True
 
         info = {
-            'x_o': self.x_o,
+            'x_o' : self.x_o,
+            'x_e' : self.x_e
         }
 
         return self.observation, reward, done, info
 
     def reset(self):
         self.x_o = self.x_o_box.sample()
+        self.x_e = 0
         self.steps = 0
         self.time = 0
+        self.K_e = self.K_e_1
         return np.array([0.0, 0.0])
 
