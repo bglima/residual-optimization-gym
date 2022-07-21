@@ -5,6 +5,8 @@ from residual_optimization.envs.sine_collision_env import SineCollisionEnv
 from residual_optimization.controllers.admittance_controller_1d import AdmittanceController1D
 import numpy as np
 import matplotlib.pyplot as plt
+import datetime
+import os
 
 naive_controller = AdmittanceController1D(
     M_d_inv = np.array([1], dtype=np.float64),
@@ -22,7 +24,7 @@ x_e_offset = 0.1
 x_e_amplitude = 0.015
 x_e_frequency = 0.2
 K_e = 1000.0
-total_episodes = 10
+total_episodes = 100
 
 # Trajectory definitions
 time = np.arange(start=time_start, stop=time_stop, step=dt)
@@ -51,50 +53,8 @@ env = SineCollisionEnv(
 model = PPO("MlpPolicy", env, verbose=1)
 model.learn(total_timesteps=num_samples * total_episodes)
 
-model.save("training_sine_constant_stiffness_1000ep")
-
-# Visualization
-obs = env.reset()
-for t in range(len(time)):
-    action, _states = model.predict(obs)
-    obs, rewards, dones, info = env.step(action)
-    
-    # Add to plot
-    x_c[t] = info['x_o']
-    x_e[t] = info['x_e']
-    u_h[t] = info['u_h']
-    u_r[t] = info['u_r']
-    u[t] = info['u']
-    f_e[t] = obs[1]
-
-# Plot variables
-fig = plt.figure()
-ax1 = plt.subplot(311)
-linewidth = 0.7
-ax1.plot(time, x_d, color='blue', linestyle='--', label='x_d', linewidth=linewidth)
-ax1.plot(time, x_c, color='black', label='x_c', linewidth=linewidth)
-ax1.plot(time, x_e, color='red', linestyle='--', label='x_e', linewidth=linewidth)
-ax1.set_ylabel('Position (m)')
-ax1.title.set_text('Position tracking')
-ax1.set_ylim([0, 0.22])
-ax1.legend()
-
-ax2 = plt.subplot(312)
-ax2.plot(time, f_d, color='blue', linestyle='--', label='f_d', linewidth=linewidth)
-ax2.plot(time, f_e, color='black', label='f_e', linewidth=linewidth)
-ax2.set_ylabel('Force (N)')
-ax2.legend()
-ax2.title.set_text('Force tracking')
-
-ax3 = plt.subplot(313)
-ax3.plot(time, u_h, color='red', linestyle='-', label='u_h', linewidth=linewidth)
-ax3.plot(time, u_r, color='blue', linestyle='-', label='u_r', linewidth=linewidth)
-ax3.plot(time, u, color='black', linestyle='-', label='u', linewidth=linewidth)
-ax3.set_ylabel('Policy Action (m)')
-ax3.legend()
-ax3.title.set_text('Force tracking')
-
-plt.xlabel("Time (sec)")
-
-fig.subplots_adjust(hspace=0.5)
-plt.show()
+filepath = os.path.abspath(os.path.dirname(__file__))
+filename = datetime.datetime.now().strftime("ppo_model_%Y_%m_%d-%I:%M:%S_%p")
+finalpath = os.path.join(filepath, '../', 'models', filename)
+print('Saving model to ', finalpath)
+model.save(finalpath)
