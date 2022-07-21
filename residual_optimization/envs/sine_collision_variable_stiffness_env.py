@@ -188,7 +188,10 @@ class SineCollisionVariableStiffnessEnv(gym.Env):
 
         info = {
             'x_o' : self.x_o,
-            'x_e' : self.x_e
+            'x_e' : self.x_e,
+            'u_h' : u_h,
+            'u_r' : u_r,
+            'u' : u
         }
 
         return self.observation, reward, done, info

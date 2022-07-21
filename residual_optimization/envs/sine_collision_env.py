@@ -155,8 +155,8 @@ class SineCollisionEnv(gym.Env):
         u_r = action
         
         # Uncomment next line to allow the policy addition
-        # u = u_h + u_r
         u = u_h + u_r
+        # u = u_h
 
         # Update absolute pose
         self.x_o = u
@@ -185,7 +185,10 @@ class SineCollisionEnv(gym.Env):
 
         info = {
             'x_o' : self.x_o,
-            'x_e' : self.x_e
+            'x_e' : self.x_e,
+            'u_h' : u_h,
+            'u_r' : u_r,
+            'u' : u
         }
 
         return self.observation, reward, done, info
