@@ -41,7 +41,9 @@ env = SineCollisionEnv(
     x_e_offset=x_e_offset,
     x_e_amplitude=x_e_amplitude,
     x_e_frequency=x_e_frequency,
-    K_e=np.array([K_e], dtype=np.float64)
+    K_e=np.array([K_e], dtype=np.float64),
+    x_d=x_d,
+    f_d=f_d
 )
 observation = env.reset()
 
@@ -49,7 +51,6 @@ observation = env.reset()
 x_o = 0
 for t in range(len(time)):
     # Update controllers    
-    naive_controller.set_reference(np.array([x_d[t], f_d[t]], dtype=np.float64))   # Setpoint for u_h in form [x_d, f_d]
     action = env.action_space.sample()          # Sample random u_r
     obs, reward, done, info = env.step(action)  # Calculate reward
 

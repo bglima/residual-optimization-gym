@@ -1,13 +1,10 @@
 ## residual-optimization
 
-### Dependencies
-
-Refer to [Tensorflow Installation guide](https://www.tensorflow.org/install/pip) to install Miniconda3.
-
-Then, create a TF 1.15 environment:
+### Create a virtual environment for the project
 ```
-conda create -n tf15 python tensorflow=1.15
-conda activate tf15
+python3 -m venv ./venv
+source activate ./venv/bin/activate
+pip install -r requirements.txt
 ```
 
 ### Install the package
@@ -22,5 +19,4 @@ pip install -e .
 ### Implementation references
 
 - [OpenAI Gym API](https://www.gymlibrary.ml/content/api/)
-- [Stable Baselines Env Creation](https://stable-baselines.readthedocs.io/en/master/guide/custom_env.html)
-- [Env Example Mountain Car](https://github.com/openai/gym/blob/master/gym/envs/classic_control/mountain_car.py)
+- [Stable Baselines 3](https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html)

@@ -1,7 +1,6 @@
 import gym
 
-from stable_baselines.common.policies import MlpPolicy
-from stable_baselines import TRPO
+from stable_baselines3 import PPO
 from residual_optimization.envs.sine_collision_env import SineCollisionEnv
 from residual_optimization.controllers.admittance_controller_1d import AdmittanceController1D
 import numpy as np
@@ -33,6 +32,7 @@ f_d = np.ones_like(time, dtype=np.float64) * 5.0
 x_c = np.zeros_like(x_d, dtype=np.float64)
 x_e = np.zeros_like(x_d, dtype=np.float64)
 f_e = np.zeros_like(f_d, dtype=np.float64)
+u_r = np.zeros_like(f_d, dtype=np.float64)
 
 # Gym environment
 env = SineCollisionEnv(
@@ -41,29 +41,54 @@ env = SineCollisionEnv(
     x_e_offset=x_e_offset,
     x_e_amplitude=x_e_amplitude,
     x_e_frequency=x_e_frequency,
-    K_e=np.array([K_e], dtype=np.float64)
+    K_e=np.array([K_e], dtype=np.float64),
+    x_d=x_d,
+    f_d=f_d
 )
 
-model = TRPO(MlpPolicy, env, verbose=1)
+model = PPO("MultiInputPolicy", env, verbose=1)
 model.learn(total_timesteps=num_samples * total_episodes)
 
+model.save("training_sine_constant_stiffness_1000ep")
+
+# Visualization
 obs = env.reset()
-while True:
-    action, _states = model.predict(obs)
-    obs, rewards, dones, info = env.step(action)
-    env.render()
-
-
-
-# Main loop
-x_o = 0
 for t in range(len(time)):
-    # Update controllers    
-    naive_controller.set_reference(np.array([x_d[t], f_d[t]], dtype=np.float64))   # Setpoint for u_h in form [x_d, f_d]
-    action = env.action_space.sample()          # Sample random u_r
-    obs, reward, done, info = env.step(action)  # Calculate reward
-
+    action, _states = model.predict(obs)
+    u_r[t] = action[0]
+    obs, rewards, dones, info = env.step(action)
+    
     # Add to plot
     x_c[t] = info['x_o']
     x_e[t] = info['x_e']
     f_e[t] = obs[1]
+
+# Plot variables
+fig = plt.figure()
+ax1 = plt.subplot(311)
+linewidth = 0.7
+ax1.plot(time, x_d, color='blue', linestyle='--', label='x_d', linewidth=linewidth )
+ax1.plot(time, x_c, color='black', label='x_c', linewidth=linewidth )
+ax1.plot(time, x_e, color='red', linestyle='--', label='x_e', linewidth=linewidth )
+ax1.set_ylabel('Position (m)')
+ax1.title.set_text('Position tracking')
+ax1.set_ylim([0, 0.22])
+ax1.legend()
+
+ax2 = plt.subplot(312)
+ax2.plot(time, f_d, color='blue', linestyle='--', label='f_d', linewidth=linewidth )
+ax2.plot(time, f_e, color='black', label='f_e', linewidth=linewidth )
+ax2.set_ylabel('Force (N)')
+ax2.legend()
+ax2.title.set_text('Force tracking')
+
+ax3 = plt.subplot(313)
+ax3.plot(time, u_r, color='blue', linestyle='-', label='u_r', linewidth=linewidth )
+ax3.set_ylabel('Policy Action (m)')
+ax3.legend()
+ax3.title.set_text('Force tracking')
+
+plt.xlabel("Time (sec)")
+
+fig.subplots_adjust(hspace=0.5)
+plt.show()

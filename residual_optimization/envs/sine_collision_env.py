@@ -46,7 +46,9 @@ class SineCollisionEnv(gym.Env):
         K_e : np.float64,
         x_e_amplitude : np.float64,
         x_e_offset : np.float64,
-        x_e_frequency : np.float64
+        x_e_frequency : np.float64,
+        x_d : np.ndarray,
+        f_d : np.ndarray,
     ):
         """
         This environment has the wall position varying with a fixe offset and amplitude.
@@ -66,6 +68,11 @@ class SineCollisionEnv(gym.Env):
             The offset of the sinusoid from the beggining
         x_e_frequency : float
             The frequency is hz of the sinusoid
+        x_d : np.ndarray
+            The desided positions
+        f_d : np.ndarray
+            The desired forces
+        
         """
         super(SineCollisionEnv, self).__init__()
         self.base_controller = base_controller
@@ -90,11 +97,13 @@ class SineCollisionEnv(gym.Env):
         self.x_e_frequency = x_e_frequency
         self.x_e_offset = x_e_offset
         self.K_e = K_e
+        self.x_d = x_d
+        self.f_d = f_d
 
         # Define our action space for "u_r"
         self.action_shape = (1,)
-        self.action_min = -0.01
-        self.action_max = 0.01
+        self.action_min = -0.05
+        self.action_max = 0.05
 
         # We use Box since our neural network residual action is continuous
         self.action_space = gym.spaces.Box(
@@ -121,7 +130,7 @@ class SineCollisionEnv(gym.Env):
 
         # Total number of actions before terminal state
         self.steps = 0
-        self.max_steps = int(1e3)
+        self.max_steps = len(self.x_d) - 1
 
     def step(self, action):
         """
@@ -141,6 +150,7 @@ class SineCollisionEnv(gym.Env):
         # Calculate human-designed control u_h
         # and policy control u_r
         _, f_e = self.observation
+        self.base_controller.set_reference(np.array([self.x_d[self.steps-1], self.f_d[self.steps-1]], dtype=np.float64))   # Setpoint for u_h in form [x_d, f_d]
         u_h = self.base_controller.update(f_e, self.dt)
         u_r = action
         
@@ -166,7 +176,7 @@ class SineCollisionEnv(gym.Env):
         self.observation = np.hstack((f_d, f_e)).reshape(2,1)
 
         # Calculate the reward
-        reward = -d_f ** 2
+        reward = -np.linalg.norm(d_f) ** 2
 
         # Check if within limits
         done = False
@@ -185,5 +195,5 @@ class SineCollisionEnv(gym.Env):
         self.x_e = 0
         self.steps = 0
         self.time = 0
-        return np.array([0.0, 0.0])
+        return np.array([0.0, 0.0]).reshape((2, 1))
 

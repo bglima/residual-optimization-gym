@@ -2,5 +2,6 @@ from setuptools import setup
 
 setup(name='residual_optimization',
       version='0.0.1',
-      install_requires=['gym', 'tensorflow']
+      install_requires=[],
+      packages=['residual_optimization']
 )
