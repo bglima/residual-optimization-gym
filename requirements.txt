@@ -2,7 +2,6 @@
 torch==1.11.0+cpu
 torchvision==0.12.0+cpu
 torchaudio==0.11.0
-wheel
 pyglet
 gym==0.21
 stable-baselines3
