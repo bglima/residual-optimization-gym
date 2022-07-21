@@ -31,7 +31,7 @@ class AdmittanceController1D(BaseController):
     f_e : np.ndarray
         1d-array with the force exerted by the robot over the environment
     """
-    def __init__(self, M_d : np.matrix, K_P : np.matrix, K_D : np.matrix):
+    def __init__(self, M_d : np.array, K_P : np.array, K_D : np.array):
         """
         Parameters
         ----------
@@ -67,9 +67,20 @@ class AdmittanceController1D(BaseController):
         reference : np.ndarray
             2d-array of form [x_d, f_d]
         """
-        (self.x_d, self.f_d) = reference
+        self.x_d, self.f_d = reference
 
-    def update(self, feedback : np.ndarray, dt : np.float32):
+    def get_reference(self):
+        """
+        Get the reference of the controller.
+
+        Returns
+        -------
+        np.ndarray
+            2d-array of form [x_d, f_d]
+        """
+        return np.array([self.x_d, self.f_d])
+
+    def update(self, feedback : np.ndarray, dt : np.float64):
         """
         Receives a feedback comprised by the force felt by a force sensor.
 
@@ -77,7 +88,7 @@ class AdmittanceController1D(BaseController):
         ----------
         feedback : np.ndarray
             1d-array with the force read by a force sensor
-        dt : np.float32
+        dt : np.float64
             Current duration of control loop in seconds.
 
         Returns

@@ -45,7 +45,16 @@ class BaseController():
         """
         raise NotImplementedError
 
-    def update(self, feedback : np.ndarray, dt : np.float32):
+    def get_reference(self):
+        """
+        Returns
+        ----------
+        reference : np.ndarray
+            Get the current setpoint of the controller
+        """
+        raise NotImplementedError
+
+    def update(self, feedback : np.ndarray, dt : np.float64):
         """
         Do one iteration of the control loop.
 
@@ -53,7 +62,7 @@ class BaseController():
         ----------
         feedback : np.ndarray
             Feedback variable for the controller.
-        dt : np.float32
+        dt : np.float64
             The time duration of the control loop.
 
         Returns
