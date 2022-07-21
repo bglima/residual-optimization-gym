@@ -50,12 +50,7 @@ class AdmittanceController1D(BaseController):
             control_shape = (1,),
             reference_shape = (2, 1)
         )
-        self.f_d = np.zeros(self.feedback_shape)
-        self.f_e = np.zeros(self.feedback_shape)
-        self.x_d = np.zeros(self.control_shape)
-        self.x_c = np.zeros(self.control_shape)
-        self.x_dot_c = np.zeros(self.control_shape)
-        self.x_dot_dot_c = np.zeros(self.control_shape)
+        self.reset()
 
     def set_reference(self, reference: np.ndarray):
         """
@@ -112,3 +107,11 @@ class AdmittanceController1D(BaseController):
         
         # Returns the controlled variable
         return self.x_c
+
+    def reset(self):
+        self.f_d = np.zeros(self.feedback_shape)
+        self.f_e = np.zeros(self.feedback_shape)
+        self.x_d = np.zeros(self.control_shape)
+        self.x_c = np.zeros(self.control_shape)
+        self.x_dot_c = np.zeros(self.control_shape)
+        self.x_dot_dot_c = np.zeros(self.control_shape)

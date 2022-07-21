@@ -196,4 +196,5 @@ class SineCollisionEnv(gym.Env):
         self.x_e = 0
         self.steps = 0
         self.time = 0
+        self.base_controller.reset()
         return np.zeros(self.observation_shape)

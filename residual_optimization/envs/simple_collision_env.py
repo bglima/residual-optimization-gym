@@ -171,5 +171,6 @@ class SimpleCollisionEnv(gym.Env):
         self.x_o = self.x_o_box.sample()
         self.steps = 0
         self.time = 0
+        self.base_controller.reset()
         return np.array([0.0, 0.0])
 

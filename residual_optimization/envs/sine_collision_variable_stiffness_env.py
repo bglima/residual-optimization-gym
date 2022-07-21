@@ -202,5 +202,6 @@ class SineCollisionVariableStiffnessEnv(gym.Env):
         self.steps = 0
         self.time = 0
         self.K_e = self.K_e_1
+        self.base_controller.reset()
         return np.array([0.0, 0.0])
 
