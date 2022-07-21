@@ -19,43 +19,101 @@ class SimpleCollisionEnv(gym.Env):
         "u_h" : the desired control output given by a simplified model "base_controller"
         "u_r" : the residual unknown force that is given back by the environment
 
-    The simplified model "base_controller" is passed as an argument of the constructor
+    The human-provided model "base_controller" is passed as an argument to the constructor.
 
     Our policy needs to search for "u_r", comprising our action space.
+
     Our action "u_r" is function of two observation variables, which are:
-        "f_d" : the desired force to be applied by the end-effector
+        "f_d" : the desired force to be applied by the agente end-effector
         "f_e" : the force which is applied back by the environment
 
-    Our reward is (TODO).
+    Internal parameters
+    -------------------
+    x_e : float
+        The position in meters of the wall with respect to the origin.
+    K_e : float
+        The stiffiness of the environment.
+
+    Reward
+    ------
+    Initially it is defined as a shaped reward which is the negative squared
+    error
+        r = -(f_d - f_e) ** 2
     """
-    def __init__(self, base_controller: BaseController):
+    def __init__(self, base_controller : BaseController, dt : np.float64):
+        """
+        Parameters
+        ----------
+        base_controller : controllers.BaseController
+            It is the human-defined controller given as the base controller.
+        dt : float
+            It is the duratin of the control cycle for both the human-defined and 
+            the learned policy controller.
+        """
         super(SimpleCollisionEnv, self).__init__()
         self.base_controller = base_controller
+        self.dt = dt
+
+        # Define the starting position for the robot
+        self.x_o_shape = (1,)
+        self.x_o_min = 0
+        self.x_o_max = 0
+        self.x_o_box = gym.spaces.Box(
+            low=self.x_o_min,
+            high=self.x_o_max,
+            shape=self.x_o_shape,
+            dtype=np.float64
+        )
+        self.x_o = self.x_o_box.sample()
+
+        # Define the environment contact position x_e
+        self.x_e_shape = (1,)
+        self.x_e_min = 0.05
+        self.x_e_max = 0.05
+        self.x_e_box = gym.spaces.Box(
+            low=self.x_e_min,
+            high=self.x_e_max,
+            shape=self.x_e_shape,
+            dtype=np.float64
+        )
+        self.x_e = self.x_e_box.sample()
+
+        # Define the evironment stiffness K_e
+        self.K_e_shape = (1,)
+        self.K_e_min = 1
+        self.K_e_max = 1
+        self.K_e_box = gym.spaces.Box(
+            low=self.K_e_min,
+            high=self.K_e_max,
+            shape=self.K_e_shape,
+            dtype=np.float64
+        )
+        self.K_e = self.K_e_box.sample()
 
         # Define our action space for "u_r"
         self.action_shape = (1,)
-        self.action_min = -1
-        self.action_max = 1
+        self.action_min = -0.001
+        self.action_max = 0.001
 
         # We use Box since our neural network residual action is continuous
         self.action_space = gym.spaces.Box(
             low=self.action_min,
             high=self.action_max,
-            shape=self.action_shape
+            shape=self.action_shape,
+            dtype=np.float64
         )
 
-        # Our observation space are two forces: "f_d" and "f_e"
-        self.observation_shape = (2, 3)
+        # Our observation space are two uni-dimensional forces: "f_d" and "f_e"
+        self.observation_shape = (2, 1)
         self.observation_min = -50
         self.observation_max = 50
         self.observation_space = gym.spaces.Box(
             low=self.observation_min,
             high=self.observation_max,
-            shape=self.observation_shape
+            shape=self.observation_shape,
+            dtype=np.float64
         )
-
-        # Initial state for our observation variable
-        self.state = self.observation_space.sample()
+        self.observation = np.zeros(shape=(2,1))
 
         # Maximum difference between "f_d" and "f_e" so that our episode is considered a success
         self.tolerance = 1e-3
@@ -68,28 +126,40 @@ class SimpleCollisionEnv(gym.Env):
         """
         Receives the neural network action, sums up with the base_controller action
         and apply the sum to the environment.
-        """
-        # Check if the neural network action is within its bounds
-        assert self.action_space.contains(action), f"{action} is not a valid action."
 
+        Parameters
+        ----------
+        action : np.ndarray
+            The control variable "u_r" output by the policy. It is defined as the residual
+            of the next position in end-effector frame.
+        """
+        assert self.action_space.contains(action), f"{action} is not a valid policy action."
         self.steps += 1
 
-        # Gets the simple controller action
-        # Currently, the base_controller state is the same as the neural network one
-        base_action = self.base_controller.update(self.state, 0.01)
+        # Calculate human-designed control u_h
+        # and policy control u_r
+        _, f_e = self.observation
+        u_h = self.base_controller.update(f_e, self.dt)
+        u_r = action
+        u = u_h + u_r
 
-        # Sums the action from the neural network policy with the simple controller action
-        u = base_action + action
+        # Update absolute pose
+        self.x_o += u
 
-        # TODO: Model the environment response given the summed action; For now,
-        # return a random observation.
-        observation = self.observation_space.sample()
+        # Get environment response
+        x_d, f_d = self.base_controller.get_reference()
+        if self.x_o + x_d <= self.x_e:
+            f_e = np.array([0.0], dtype=np.float64)
+        else:
+            f_e = np.multiply(self.K_e, self.x_o - self.x_e )
+            f_e = -f_e # Force exerted equals minus the environment force
 
         # Calculate the error given by "f_d" - "f_e"
-        error = observation[0] - observation[1]
+        d_f = f_d - f_e
+        self.observation = np.hstack((f_d, f_e)).reshape(2,1)
 
-        # TODO: Model the reward based on the observations
-        reward = 1 if np.max(error) < self.tolerance else -1
+        # Calculate the reward
+        reward = -d_f ** 2
 
         # Check if within limits
         done = False
@@ -97,16 +167,15 @@ class SimpleCollisionEnv(gym.Env):
             done = True
 
         info = {
-            'state': np.array(self.state),
-            'action': action,
-            'done': done,
-            'reward': reward
+            'x_o': self.x_o,
         }
 
-        return observation, reward, done, info
+        return self.observation, reward, done, info
 
     def reset(self):
+        self.x_o = self.x_o_box.sample()
+        self.x_e = self.x_e_box.sample()
+        self.K_e = self.K_e_box.sample()
         self.steps = 0
-        self.state = self.observation_space.sample()
-        return self.state
+        return np.array([0.0, 0.0])
 
