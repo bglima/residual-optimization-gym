@@ -31,19 +31,18 @@ class AdmittanceController1D(BaseController):
     f_e : np.ndarray
         1d-array with the force exerted by the robot over the environment
     """
-    def __init__(self, M_d : np.array, K_P : np.array, K_D : np.array):
+    def __init__(self, M_d_inv : np.array, K_P : np.array, K_D : np.array):
         """
         Parameters
         ----------
-        M_d : np.matrix
+        M_d_inv : np.matrix
             1d-array with the Intertia matrix
         K_P : np.matrix
             1d-array with the spring constant
         K_D : np.matrix
             1d-array with the damping constant    
         """
-        self.M_d = M_d
-        self.M_d_inv = M_d ** -1
+        self.M_d_inv = M_d_inv
         self.K_P = K_P
         self.K_D = K_D
         super(AdmittanceController1D, self).__init__(
@@ -97,8 +96,8 @@ class AdmittanceController1D(BaseController):
             1d-array with the controlled variable
         """
         # The force exerted by the robot is the opposite of the force read by the sensor
-        self.f_e = -feedback
-
+        self.f_e = feedback
+        
         # Force error
         delta_f = self.f_d - self.f_e
 
