@@ -91,7 +91,7 @@ class AdmittanceController1D(BaseController):
             1d-array with the controlled variable
         """
         # The force exerted by the robot is the opposite of the force read by the sensor
-        self.f_e = feedback
+        self.f_e, self.x_c, self.x_c_dot = feedback
         
         # Force error
         delta_f = self.f_d - self.f_e

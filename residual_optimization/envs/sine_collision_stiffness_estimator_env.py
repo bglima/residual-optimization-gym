@@ -118,6 +118,9 @@ class SineCollisionStiffnessEstimator(gym.Env):
         self.max_u_r = max_u_r
         self.action_shape = (1,)
         self.observation_shape = (1,)
+        self.x_o = 0.0
+        self.x_o_prev = 0.0
+        self.x_o_dot = 0.0
 
         # Total number of actions before terminal state
         self.max_steps = len(self.x_d) - 1
@@ -175,7 +178,7 @@ class SineCollisionStiffnessEstimator(gym.Env):
         u_h_reference = np.array([x_d, f_d], dtype=np.float64)
         self.base_controller.set_reference(u_h_reference)   # Setpoint for u_h in form [x_d, f_d]
         
-        u_h = self.base_controller.update(self.f_e, self.dt)
+        u_h = self.base_controller.update((self.f_e, self.x_o, self.x_o_dot), self.dt)
                   
         # Get environment response
         self.x_e = self.x_e_offset + self.x_e_amplitude * np.sin(2 * np.pi * self.x_e_frequency * self.current_time)
@@ -208,6 +211,9 @@ class SineCollisionStiffnessEstimator(gym.Env):
             self.f_e = 0
         else:
             self.f_e = self.K_e * ( u - self.x_e )
+        
+        self.x_o_dot = (self.x_o - self.x_o_prev) / self.dt
+        self.x_o_prev = self.x_o
 
         # Calculate the error given by "f_d" - "f_e"
         self.observation = self.f_e
