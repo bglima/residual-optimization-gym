@@ -12,47 +12,20 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-m', '--model', default='./models/ppo_model_2022_07_21-09:36:46_PM')
 args = parser.parse_args()
 
-naive_controller = AdmittanceController1D(
-    M_d_inv = np.array([1], dtype=np.float64),
-    K_P = np.array([0.0], dtype=np.float64),
-    K_D = np.array([42.0], dtype=np.float64)
-)
-
-# Trajectory variables
-dt = 0.01
-time_start = 0
-time_stop = 10
-x_start = 0
-x_stop = 0.2
-x_e_offset = 0.1
-x_e_amplitude = 0.015
-x_e_frequency = 0.2
-K_e = 1000.0
-total_episodes = 10
+# Gym environment
+env = SineCollisionEnv(testing=True)
 
 # Trajectory definitions
-time = np.arange(start=time_start, stop=time_stop, step=dt)
+time = env.time
 num_samples = len(time)
-x_d = np.ones_like(time, dtype=np.float64) * 0.2
-f_d = np.ones_like(time, dtype=np.float64) * 5.0
+x_d = env.x_d
+f_d = env.f_d
 x_c = np.zeros_like(x_d, dtype=np.float64)
 x_e = np.zeros_like(x_d, dtype=np.float64)
 f_e = np.zeros_like(f_d, dtype=np.float64)
 u_h = np.zeros_like(f_d, dtype=np.float64)
 u_r = np.zeros_like(f_d, dtype=np.float64)
 u = np.zeros_like(f_d, dtype=np.float64)
-
-# Gym environment
-env = SineCollisionEnv(
-    base_controller=naive_controller,
-    dt=dt,
-    x_e_offset=x_e_offset,
-    x_e_amplitude=x_e_amplitude,
-    x_e_frequency=x_e_frequency,
-    K_e=np.array([K_e], dtype=np.float64),
-    x_d=x_d,
-    f_d=f_d
-)
 
 model = PPO("MlpPolicy", env, verbose=1)
 model.load(os.path.abspath(args.model))

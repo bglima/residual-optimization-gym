@@ -60,6 +60,7 @@ class SineCollisionEnv(gym.Env):
         M_d_inv : np.ndarray = np.array([1], dtype=np.float64),
         K_P : np.ndarray = np.array([0.0], dtype=np.float64),
         K_D : np.ndarray = np.array([42.0], dtype=np.float64),
+        testing : bool = False,
     ):
         """
         This environment has the wall position varying with a fixe offset and amplitude.
@@ -87,6 +88,7 @@ class SineCollisionEnv(gym.Env):
         super(SineCollisionEnv, self).__init__()
 
         # General purpose variables
+        self.testing = testing
         self.time = np.arange(start=time_start, stop=time_stop, step=dt)
         self.dt = dt
         self.num_samples = len(self.time)
@@ -178,7 +180,10 @@ class SineCollisionEnv(gym.Env):
         u_r = action * self.max_u_r
         
         # Uncomment next line to allow the policy addition
-        u = u_h + u_r
+        if (self.testing):
+            u = u_h
+        else:
+            u = u_h + u_r
 
         # Update absolute pose
         self.x_o = u
