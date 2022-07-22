@@ -1,11 +1,5 @@
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==1.11.0+cpu
-torchvision==0.12.0+cpu
-torchaudio==0.11.0
 pyglet
 gym==0.21
-stable-baselines3
 matplotlib
 opencv-python
-sb3-contrib
 cvxpy

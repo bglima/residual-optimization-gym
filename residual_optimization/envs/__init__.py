@@ -1,1 +1,0 @@
-from residual_optimization.envs.sine_collision_env import SineCollisionEnv
