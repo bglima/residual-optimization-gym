@@ -102,8 +102,9 @@ class SineCollisionEnv(gym.Env):
 
         # Define our action space for "u_r"
         self.action_shape = (1,)
-        self.action_min = -0.05
-        self.action_max = 0.05
+        self.action_min = -1
+        self.action_max = 1
+        self.last_ur = np.array([0], np.float64)
 
         # We use Box since our neural network residual action is continuous
         self.action_space = gym.spaces.Box(
@@ -114,9 +115,9 @@ class SineCollisionEnv(gym.Env):
         )
 
         # Our observation space are two uni-dimensional forces: "f_d" and "f_e"
-        self.observation_shape = (2, 1)
-        self.observation_min = -50
-        self.observation_max = 50
+        self.observation_shape = (3, 1)
+        self.observation_min = 0
+        self.observation_max = 10
         self.observation_space = gym.spaces.Box(
             low=self.observation_min,
             high=self.observation_max,
@@ -149,10 +150,10 @@ class SineCollisionEnv(gym.Env):
 
         # Calculate human-designed control u_h
         # and policy control u_r
-        _, f_e = self.observation
+        _, f_e, u_h = self.observation
         self.base_controller.set_reference(np.array([self.x_d[self.steps-1], self.f_d[self.steps-1]], dtype=np.float64))   # Setpoint for u_h in form [x_d, f_d]
         u_h = self.base_controller.update(f_e, self.dt)
-        u_r = action
+        u_r = action * 0.01
         
         # Uncomment next line to allow the policy addition
         u = u_h + u_r
@@ -171,10 +172,12 @@ class SineCollisionEnv(gym.Env):
         # Calculate the error given by "f_d" - "f_e"
         _, f_d = self.base_controller.get_reference()
         d_f = f_d - f_e
-        self.observation = np.hstack((f_d, f_e)).reshape(2,1)
+        self.observation = np.hstack((f_d, f_e, u_h)).reshape( self.observation_shape )
 
         # Calculate the reward
-        reward = -np.linalg.norm(d_f) ** 2
+        reward = -0.01 * np.linalg.norm(d_f) - \
+                    10 * np.linalg.norm(u_r) - \
+                     1 * np.linalg.norm( self.last_ur - u_r )
 
         # Check if within limits
         done = False
@@ -197,4 +200,6 @@ class SineCollisionEnv(gym.Env):
         self.steps = 0
         self.time = 0
         self.base_controller.reset()
-        return np.zeros(self.observation_shape)
+        self.observation = np.zeros(self.observation_shape, dtype=np.float64)
+        self.last_action = np.zeros(self.action_shape, dtype=np.float64)
+        return self.observation

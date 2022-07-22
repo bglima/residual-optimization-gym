@@ -7,6 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import datetime
 import os
+import torch as th
 
 naive_controller = AdmittanceController1D(
     M_d_inv = np.array([1], dtype=np.float64),
@@ -24,7 +25,7 @@ x_e_offset = 0.1
 x_e_amplitude = 0.015
 x_e_frequency = 0.2
 K_e = 1000.0
-total_episodes = 100
+total_episodes = 1000
 
 # Trajectory definitions
 time = np.arange(start=time_start, stop=time_stop, step=dt)
@@ -50,8 +51,19 @@ env = SineCollisionEnv(
     f_d=f_d
 )
 
-model = PPO("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=num_samples * total_episodes)
+policy_kwargs = dict(activation_fn=th.nn.ReLU,
+                     net_arch=[dict(pi=[128], vf=[128])])
+
+model = PPO("MlpPolicy", env, verbose=1, policy_kwargs=policy_kwargs)
+
+env = model.get_env()
+
+total_timesteps = num_samples * total_episodes
+print(f'[INFO] Learning for {total_timesteps} timesteps.')
+
+model.learn(
+    total_timesteps=total_timesteps
+)
 
 filepath = os.path.abspath(os.path.dirname(__file__))
 filename = datetime.datetime.now().strftime("ppo_model_%Y_%m_%d-%I:%M:%S_%p")
