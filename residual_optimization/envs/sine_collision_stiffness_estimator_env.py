@@ -54,8 +54,8 @@ class SineCollisionStiffnessEstimator(gym.Env):
         x_e_frequency : np.float64 = 0.2,
         max_u_r : np.float64 = 0.01,
         # Base controller variables
-        x_d_start : np.float64 = 0.,
-        x_d_stop : np.float64 = 0.,
+        x_d_start : np.float64 = 0.2,
+        x_d_stop : np.float64 = 0.2,
         f_d_start : np.float64 = 5.0,
         f_d_stop :  np.float64 = 5.0,
         time_start : np.float64 = 0,
