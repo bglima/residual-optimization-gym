@@ -63,6 +63,8 @@ class SineCollisionStiffnessEstimator(gym.Env):
         M_d_inv : np.ndarray = np.array([1], dtype=np.float64),
         K_P : np.ndarray = np.array([0.0], dtype=np.float64),
         K_D : np.ndarray = np.array([42.0], dtype=np.float64),
+        alpha : np.float64 = 0,
+        beta : np.float64 = 0,
         testing : bool = False,
     ):
         """
@@ -115,12 +117,16 @@ class SineCollisionStiffnessEstimator(gym.Env):
 
         # Define our action space for "u_r"
         self.u_r = cp.Variable()
+        self.u_r_prev = 0.0
         self.max_u_r = max_u_r
         self.action_shape = (1,)
         self.observation_shape = (1,)
         self.x_o = 0.0
         self.x_o_prev = 0.0
         self.x_o_dot = 0.0
+
+        self.alpha = alpha
+        self.beta = beta
 
         # Total number of actions before terminal state
         self.max_steps = len(self.x_d) - 1
@@ -182,7 +188,7 @@ class SineCollisionStiffnessEstimator(gym.Env):
                   
         # Get environment response
         self.x_e = self.x_e_offset + self.x_e_amplitude * np.sin(2 * np.pi * self.x_e_frequency * self.current_time)
-        if self.f_e == 0:
+        if u_h + self.max_u_r < self.x_e:
             u_r_star = self.max_u_r
         else:
             K_e_hat = self.get_K_e_hat()
@@ -193,11 +199,15 @@ class SineCollisionStiffnessEstimator(gym.Env):
                 self.u_r <= self.max_u_r
             ]
 
-            obj = cp.Minimize( (K_e_hat * (u_h + self.u_r - x_e_hat) - f_d ) ** 2)
+            obj = cp.Minimize( (K_e_hat * (u_h + self.u_r - x_e_hat) - f_d ) ** 2 + \
+                self.alpha * cp.norm(self.u_r, 2) + \
+                self.beta * cp.norm(self.u_r - self.u_r_prev, 1))
             
             prob = cp.Problem(obj, constraints)
             prob.solve()  # Returns the optimal value.
             u_r_star = self.u_r.value
+
+        self.u_r_prev = u_r_star
 
         # Uncomment next line to allow the policy addition
         if (self.testing):
@@ -207,7 +217,7 @@ class SineCollisionStiffnessEstimator(gym.Env):
 
         # Update absolute pose
         self.x_o = u
-        if self.x_o <= self.x_e:
+        if self.x_o < self.x_e:
             self.f_e = 0
         else:
             self.f_e = self.K_e * ( u - self.x_e )
