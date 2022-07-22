@@ -7,3 +7,4 @@ gym==0.21
 stable-baselines3
 matplotlib
 opencv-python
+sb3-contrib
