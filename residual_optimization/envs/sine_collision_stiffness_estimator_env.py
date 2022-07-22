@@ -1,10 +1,11 @@
 import numpy as np
 import gym
 import matplotlib.pyplot as plt
+import cvxpy as cp
 
 from residual_optimization.controllers.admittance_controller_1d import AdmittanceController1D
 
-class SineCollisionEnv(gym.Env):
+class SineCollisionStiffnessEstimator(gym.Env):
     """
     This follows the gym.Env API. For a detailed guide, check:
     https://www.gymlibrary.ml/content/api/
@@ -46,6 +47,8 @@ class SineCollisionEnv(gym.Env):
     def __init__(self,
         dt : np.float64 = 0.01,
         K_e : np.float64 = 1000,
+        K_e_tilde_mean : np.float64 = 0,
+        K_e_tilde_std : np.float64 = 100,
         x_e_amplitude : np.float64 = 0.015,
         x_e_offset : np.float64 = 0.1,
         x_e_frequency : np.float64 = 0.2,
@@ -85,7 +88,7 @@ class SineCollisionEnv(gym.Env):
         
         """
         print("Environment is being init.")
-        super(SineCollisionEnv, self).__init__()
+        super(SineCollisionStiffnessEstimator, self).__init__()
 
         # General purpose variables
         self.testing = testing
@@ -100,7 +103,9 @@ class SineCollisionEnv(gym.Env):
         self.x_e_frequency = x_e_frequency
         self.x_e_offset = x_e_offset
         self.K_e = K_e
-
+        self.K_e_tilde_mean = K_e_tilde_mean
+        self.K_e_tilde_std = K_e_tilde_std
+        self.f_e = 0
         # Instantiate the base controller
         self.base_controller = AdmittanceController1D(
             M_d_inv = M_d_inv,
@@ -109,31 +114,30 @@ class SineCollisionEnv(gym.Env):
         )
 
         # Define our action space for "u_r"
+        self.u_r = cp.Variable()
         self.max_u_r = max_u_r
         self.action_shape = (1,)
-        self.action_min = -1.0
-        self.action_max = 1.0
-        self.action_space = gym.spaces.Box(
-            low=self.action_min,
-            high=self.action_max,
-            shape=self.action_shape,
-            dtype=np.float64
-        )
-
-        # Our observation space are "f_d", "f_e", and "u_h"
-        self.observation_shape = (3, 1)
-        self.observation_min = 0
-        self.observation_max = 10
-        self.observation_space = gym.spaces.Box(
-            low=self.observation_min,
-            high=self.observation_max,
-            shape=self.observation_shape,
-            dtype=np.float64
-        )
-        self.observation = np.zeros(shape=self.observation_shape)
+        self.observation_shape = (1,)
 
         # Total number of actions before terminal state
         self.max_steps = len(self.x_d) - 1
+
+    def get_optimal_action(self, obs : np.ndarray):
+        """
+        Perform a optimization over d_f in order to find the best
+        residual action u_r_star. Receives as observation the desired
+        and the ference force [f_e_hat, f_d]
+
+        Parameters
+        ----------
+            obs : [f_e_hat, f_d]
+                Where f_e_hat is the 1d-array containing the estimated 
+                force from the environment, and f_d is the 1d-array 
+                with the force reference for the admittance controller
+        """
+        # TODO: Perform the u_r_start calculation
+        u_r_star = np.zeros(shape=self.action_shape)
+        return u_r_star
 
     def reset(self):
         self.base_controller.reset()
@@ -141,18 +145,16 @@ class SineCollisionEnv(gym.Env):
         self.x_e = 0.0
         self.steps = 0
         self.current_time = 0.0
-        self.x_c = np.zeros_like(self.x_d, dtype=np.float64)
-        self.x_e = np.zeros_like(self.x_d, dtype=np.float64)
-        self.f_e = np.zeros_like(self.f_d, dtype=np.float64)
-        self.u_h = np.zeros_like(self.f_d, dtype=np.float64)
-        self.u_r = np.zeros_like(self.f_d, dtype=np.float64)
-        self.last_ur = np.zeros(self.action_shape)
-        self.u = np.zeros_like(self.f_d, dtype=np.float64)
         self.observation = np.zeros(self.observation_shape, dtype=np.float64)
         self.last_ur = np.zeros(self.action_shape, dtype=np.float64)
         return self.observation
 
-    def step(self, action):
+    def get_K_e_hat(self):
+        K_e_tilde = np.random.normal(self.K_e_tilde_mean, self.K_e_tilde_std)
+        K_e_hat = self.K_e + K_e_tilde
+        return K_e_hat
+
+    def step(self):
         """
         Receives the neural network action, sums up with the base_controller action
         and apply the sum to the environment.
@@ -163,58 +165,60 @@ class SineCollisionEnv(gym.Env):
             The control variable "u_r" output by the policy. It is defined as the residual
             of the next position in end-effector frame.
         """
-        assert self.action_space.contains(action), f"{action} is not a valid policy action."
         self.steps += 1
         self.current_time += self.dt
 
         # Calculate human-designed control u_h
         # and policy control u_r
-        _, f_e, u_h = self.observation
-        u_h_reference = np.array([self.x_d[self.steps-1], self.f_d[self.steps-1]], dtype=np.float64)
+        f_d = self.f_d[self.steps-1]
+        x_d = self.x_d[self.steps-1]
+        u_h_reference = np.array([x_d, f_d], dtype=np.float64)
         self.base_controller.set_reference(u_h_reference)   # Setpoint for u_h in form [x_d, f_d]
         
-        u_h = self.base_controller.update(f_e, self.dt)
-        
-        # As action is in the range
-        u_r = action * self.max_u_r
-        
+        u_h = self.base_controller.update(self.f_e, self.dt)
+                  
+        # Get environment response
+        self.x_e = self.x_e_offset + self.x_e_amplitude * np.sin(2 * np.pi * self.x_e_frequency * self.current_time)
+        if self.f_e == 0:
+            u_r_star = self.max_u_r
+        else:
+            K_e_hat = self.get_K_e_hat()
+            x_e_hat = self.x_o - (K_e_hat ** -1) * self.f_e
+
+            constraints = [
+                self.u_r >= -self.max_u_r,
+                self.u_r <= self.max_u_r
+            ]
+
+            obj = cp.Minimize( (K_e_hat * (u_h + self.u_r - x_e_hat) - f_d ) ** 2)
+            
+            prob = cp.Problem(obj, constraints)
+            prob.solve()  # Returns the optimal value.
+            u_r_star = self.u_r.value
+
         # Uncomment next line to allow the policy addition
         if (self.testing):
             u = u_h
         else:
-            u = u_h + u_r
+            u = u_h + u_r_star
 
         # Update absolute pose
         self.x_o = u
-
-        # Get environment response
-        x_e = self.x_e_offset + self.x_e_amplitude * np.sin(2 * np.pi * self.x_e_frequency * self.current_time)
-        if self.x_o <= x_e:
-            f_e = np.array([0.0], dtype=np.float64)
+        if self.x_o <= self.x_e:
+            self.f_e = 0
         else:
-            f_e = np.multiply(self.K_e, self.x_o - x_e) + np.random.normal(0, 0.1)
-            
+            self.f_e = self.K_e * ( u - self.x_e )
+
         # Calculate the error given by "f_d" - "f_e"
-        _, f_d = self.base_controller.get_reference()
-        d_f = f_d - f_e
-        self.observation = np.hstack((f_d, f_e, u_h)).reshape( self.observation_shape )
-
-        # Calculate the reward
-        reward = -0.01 * np.linalg.norm(d_f) - \
-                    10 * np.linalg.norm(u_r) - \
-                     1 * np.linalg.norm( self.last_ur - u_r )
-
-        # Check if within limits
-        done = False
-        if (self.steps >= self.max_steps):
-            done = True
+        self.observation = self.f_e
 
         info = {
             'x_o' : self.x_o,
-            'x_e' : x_e,
+            'x_e' : self.x_e,
             'u_h' : u_h,
-            'u_r' : u_r,
-            'u' : u
+            'u_r' : u_r_star,
+            'u' : u,
+            'f_e' : self.f_e,
         }
 
-        return self.observation, reward, done, info
+        return self.observation, info
