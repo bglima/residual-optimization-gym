@@ -1,5 +1,7 @@
 # residual-optimization-gym
 
+This repository is due to the Optimization Techniques for Engineers project of the year 2022.
+
 ## Create a virtual environment for the project
 
 ```bash
@@ -22,4 +24,4 @@ pip install -e .
 ## Implementation references
 
 - [OpenAI Gym API](https://www.gymlibrary.ml/content/api/)
-- [Stable Baselines 3](https://stable-baselines3.readthedocs.io/en/master/modules/ppo.html)
+- [CVXPY](https://www.cvxpy.org/)
