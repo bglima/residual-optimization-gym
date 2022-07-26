@@ -13,8 +13,6 @@ pip3 install -r requirements.txt
 
 ## Install the package
 
-This is our repository for the Optimization Techniques for Engineers project for 2022.
-
 To install this package as development (modifications are applied to installed package), run:
 
 ```bash
