@@ -1,6 +1,5 @@
 import numpy as np
 import gym
-import matplotlib.pyplot as plt
 import cvxpy as cp
 import time
 

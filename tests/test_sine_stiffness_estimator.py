@@ -1,10 +1,9 @@
 from residual_optimization.envs.sine_collision_stiffness_estimator_env import SineCollisionStiffnessEstimator
-from residual_optimization.controllers.admittance_controller_1d import AdmittanceController1D
 import numpy as np
 import matplotlib.pyplot as plt
 
 # Gym environment
-env = SineCollisionStiffnessEstimator(testing=False, alpha=0, beta=0, time_stop=5, K_e_tilde_std=500)
+env = SineCollisionStiffnessEstimator(testing=False, alpha=0.1, beta=10, time_stop=5, K_e_tilde_std=500)
 
 # Trajectory definitions
 time = env.time
