@@ -2,6 +2,7 @@ import numpy as np
 import gym
 import matplotlib.pyplot as plt
 import cvxpy as cp
+import time
 
 from residual_optimization.controllers.admittance_controller_1d import AdmittanceController1D
 
@@ -66,6 +67,7 @@ class SineCollisionStiffnessEstimator(gym.Env):
         alpha : np.float64 = 0,
         beta : np.float64 = 0,
         testing : bool = False,
+        solver : str = 'OSQP'
     ):
         """
         This environment has the wall position varying with a fixe offset and amplitude.
@@ -99,6 +101,9 @@ class SineCollisionStiffnessEstimator(gym.Env):
         self.num_samples = len(self.time)
         self.x_d = np.linspace(start=x_d_start, stop=x_d_stop, num=self.num_samples)
         self.f_d = np.linspace(start=f_d_start, stop=f_d_stop, num=self.num_samples)
+        self.admittance_controller_durations = np.zeros((self.num_samples+1, 1))
+        self.residual_controller_durations = np.zeros((self.num_samples+1, 1))
+        self.solver = solver
 
         # Define the environment contact position x_e
         self.x_e_amplitude = x_e_amplitude
@@ -182,10 +187,15 @@ class SineCollisionStiffnessEstimator(gym.Env):
         f_d = self.f_d[self.steps-1]
         x_d = self.x_d[self.steps-1]
         u_h_reference = np.array([x_d, f_d], dtype=np.float64)
-        self.base_controller.set_reference(u_h_reference)   # Setpoint for u_h in form [x_d, f_d]
         
+        # Timer for the admittance_control loop
+        start_time = time.time() 
+        self.base_controller.set_reference(u_h_reference)   # Setpoint for u_h in form [x_d, f_d]        
         u_h = self.base_controller.update((self.f_e, self.x_o, self.x_o_dot), self.dt)
-                  
+        duration = time.time() - start_time
+        self.admittance_controller_durations[self.steps] = duration
+
+
         # Get environment response
         self.x_e = self.x_e_offset + self.x_e_amplitude * np.sin(2 * np.pi * self.x_e_frequency * self.current_time)
         if u_h + self.max_u_r < self.x_e:
@@ -199,13 +209,17 @@ class SineCollisionStiffnessEstimator(gym.Env):
                 self.u_r <= self.max_u_r
             ]
 
+            # Timer for the residual control loop
+            start_time = time.time()
             obj = cp.Minimize( (K_e_hat * (u_h + self.u_r - x_e_hat) - f_d ) ** 2 + \
                 self.alpha * cp.norm(self.u_r, 2) + \
                 self.beta * cp.norm(self.u_r - self.u_r_prev, 1))
             
             prob = cp.Problem(obj, constraints)
-            prob.solve()  # Returns the optimal value.
+            prob.solve(solver=self.solver)  # Returns the optimal value.
             u_r_star = self.u_r.value
+            duration = time.time() - start_time
+            self.residual_controller_durations[self.steps] = duration
 
         self.u_r_prev = u_r_star
 
