@@ -1,6 +1,5 @@
 import numpy as np
 import gym
-import matplotlib.pyplot as plt
 import cvxpy as cp
 
 from residual_optimization.controllers.admittance_controller_1d import AdmittanceController1D
