@@ -6,13 +6,28 @@ import matplotlib.pyplot as plt
 import cvxpy as cp
 
 solvers = ['OSQP', 'ECOS', 'SCS']
-solver_durations = []
+colors = ['blue', 'orange', 'green']
+solver_f_e = []
+solver_u_r = []
 
 # Plot variables
 fig = plt.figure()
+ax1 = fig.add_subplot(211)
+ax2 = fig.add_subplot(212)
+
+ax1.set_ylabel('Force (N)')
+ax1.legend()
+ax1.title.set_text('Force tracking')
+
+ax2.set_ylabel('Residual Control Action (m)')
+ax2.legend()
+ax2.title.set_text('Optimization Variable')
+
 linewidth = 0.7
 
-for solver in solvers:
+for i in range(len(solvers)):
+    print(f'Solver {i}: {solvers[i]}')
+    # If we comment the seed, solutions should be different
     np.random.seed(42)
 
     # Gym environment
@@ -20,11 +35,10 @@ for solver in solvers:
         testing=False,
         alpha=0.1,
         beta=10,
-        time_start=1,
         time_stop=5,
         K_e_tilde_std=500,
-        dt=0.01,
-        solver=solver
+        dt=0.005,
+        solver=solvers[i]
     )
 
     # Trajectory definitions
@@ -53,14 +67,16 @@ for solver in solvers:
         f_e[t] = info['f_e']
 
     nonzero_indexes = np.nonzero(env.residual_controller_durations)
-    nonzero_residual_controller_durations = env.residual_controller_durations[nonzero_indexes]
-    print(f'[INFO] Solver: {solver}')
+    nonzero_residual_controller_durations = env.residual_controller_durations[nonzero_indexes:-1]
+    
     print('[INFO] Avg duration for residual controller: {:.4f}'.format(nonzero_residual_controller_durations.mean()))
     print('[INFO] Std duration for residual controller: {:.4f}'.format(nonzero_residual_controller_durations.std()))
     print('[INFO] Max duration for residual controller: {:.4f}'.format(nonzero_residual_controller_durations.max()))
     print('[INFO] Min duration for residual controller: {:.4f}'.format(nonzero_residual_controller_durations.min()))
     
-    plt.plot(time, env.residual_controller_durations[:-1], linestyle='-', label=solver, linewidth=linewidth)
+    ax1.plot(time, f_e, color=colors[i], label=f'f_e_{solvers[i]}', linewidth=linewidth)
+    ax2.plot(time, u_r, color=colors[i], linestyle='-', label=f'u_r_{solvers[i]}', linewidth=linewidth)
+
 
 plt.ylabel('sec / iteration')
 plt.xlabel('Time (sec)')
